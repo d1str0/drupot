@@ -9,11 +9,13 @@ import (
 	"github.com/d1str0/hpfeeds"
 )
 
+const Version = "v0.0.1"
+
 type Config struct {
-	StartPort     int
-	EndPort       int
-	ExcludedPorts []int
-	HpfConfig     *HpfConfig `toml:"hpfeeds"`
+	Port                int `toml:"HttpServerPort"`
+	DrupalChangelogFile string
+	HpfeedsMeta         string
+	HpfConfig           *HpfConfig
 }
 
 // Config for Hpfeeds publishing
@@ -26,7 +28,8 @@ type HpfConfig struct {
 }
 
 func main() {
-	fmt.Println("///- Running WhiteNoise")
+	fmt.Println("///- Running Drupot")
+	fmt.Println("//- %s", Version)
 
 	// Load config file
 	var configFilename string
