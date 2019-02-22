@@ -1,0 +1,21 @@
+# Drupot Configuration File
+
+
+# Port to server the honeypot webserver on.
+# Note: Ports under 1024 require sudo.
+HttpServerPort = 80
+
+# Allows you to choose which changelog file to return to spoof different versions.
+# Always served as "CHANGELOG.txt"
+DrupalChangelogFilepath = "CHANGELOG-7.63.txt"
+
+# Meta data to be provided with each request phoned home
+HpfeedsMeta = "Drupal scan event detected"
+
+[hpfeeds]
+Host = "hpfeeds.example.com"
+Port = 10000
+Ident = "drupot"
+Auth = "drupot"
+Channel = "drupot.events"
+
