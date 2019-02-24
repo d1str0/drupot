@@ -64,7 +64,7 @@ func checkIP(app App, r *http.Request) {
 	if app.SeenIP[ip] {
 		recordRequest(app, r)
 	} else {
-		fmt.Printf("Seen request from: %s, %s", ip, r.URL.Path)
+		fmt.Printf("Seen request from: %s, %s\n", ip, r.URL.Path)
 	}
 }
 
