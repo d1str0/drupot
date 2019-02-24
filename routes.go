@@ -45,7 +45,7 @@ func saveIP(app App, r *http.Request) {
 		defer app.SeenIPLock.Unlock()
 
 		app.SeenIP[ip] = true
-		fmt.Printf("Seen new IP: %s", ip)
+		fmt.Printf("Seen new IP: %s\n", ip)
 	}
 }
 
