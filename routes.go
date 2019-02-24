@@ -63,6 +63,8 @@ func checkIP(app App, r *http.Request) {
 	// If we saw this IP request our CHANGELOG, record whatever they do next.
 	if app.SeenIP[ip] {
 		recordRequest(app, r)
+	} else {
+		fmt.Printf("Seen request from: %s, %v", ip, r)
 	}
 }
 
