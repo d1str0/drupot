@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -41,11 +43,12 @@ func saveIP(app App, r *http.Request) {
 	}
 	// If this is a previously unseen IP, let's remember them.
 	if !app.SeenIP[ip] {
+		recordRequest(app, r, false)
 		app.SeenIPLock.Lock()
 		defer app.SeenIPLock.Unlock()
 
 		app.SeenIP[ip] = true
-		fmt.Printf("Seen new IP: %s\n", ip)
+		fmt.Printf("New CHANGELOG request: %s, %s\n", ip, r.URL.Path)
 	}
 }
 
@@ -62,25 +65,28 @@ func checkIP(app App, r *http.Request) {
 
 	// If we saw this IP request our CHANGELOG, record whatever they do next.
 	if app.SeenIP[ip] {
-		recordRequest(app, r)
+		recordRequest(app, r, true)
+		fmt.Printf("Seen request from: %s, %s\n", ip, r.URL.Path)
 	} else {
+		recordRequest(app, r, false)
 		fmt.Printf("Seen request from: %s, %s\n", ip, r.URL.Path)
 	}
 }
 
 // Msg normalizes the recieved request and allows for easy marshaling into JSON.
 type Msg struct {
-	Protocol  string
-	App       string
-	Channel   string
-	Sensor    string
-	DestPort  int
-	DestIp    string
-	SrcPort   int
-	SrcIp     string
-	Meta      string
-	Signature string
-	Request   string
+	Protocol      string
+	App           string
+	Channel       string
+	Sensor        string
+	DestPort      int
+	DestIp        string
+	SrcPort       int
+	SrcIp         string
+	Meta          string
+	Signature     string
+	Fingerprinted bool
+	Request       *RequestJson
 }
 
 // recordRequest will parse the http.Request and put it into a normalized format
@@ -88,7 +94,7 @@ type Msg struct {
 // logged to a file directly.
 //
 // TODO: Add regular file logging.
-func recordRequest(app App, r *http.Request) {
+func recordRequest(app App, r *http.Request, fingerprinted bool) {
 	ip, p, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		fmt.Println("error:", err)
@@ -101,21 +107,21 @@ func recordRequest(app App, r *http.Request) {
 		return
 	}
 
-	// Save a json version of the full request
-	req_string := fmt.Sprintf("%v", r)
+	rj := TrimRequest(r)
 
 	// Populate data to send
 	pub_msg := Msg{
-		Protocol: r.Proto,
-		App:      app.Name,
-		Channel:  app.Config.Hpfeeds.Channel,
-		Sensor:   app.SensorUUID.String(),
-		DestPort: app.Config.Drupal.Port,
-		DestIp:   app.SensorIP,
-		SrcPort:  port,
-		SrcIp:    ip,
-		Meta:     app.Config.Hpfeeds.Meta,
-		Request:  req_string,
+		Protocol:      r.Proto,
+		App:           app.Name,
+		Channel:       app.Config.Hpfeeds.Channel,
+		Sensor:        app.SensorUUID.String(),
+		DestPort:      app.Config.Drupal.Port,
+		DestIp:        app.SensorIP,
+		SrcPort:       port,
+		SrcIp:         ip,
+		Meta:          app.Config.Hpfeeds.Meta,
+		Fingerprinted: fingerprinted,
+		Request:       rj,
 	}
 
 	// Marshal it to json so we can send it over hpfeeds.
@@ -129,4 +135,36 @@ func recordRequest(app App, r *http.Request) {
 	if app.Config.Hpfeeds.Enabled {
 		app.Publish <- buf
 	}
+}
+
+func TrimRequest(r *http.Request) *RequestJson {
+	body, _ := ioutil.ReadAll(r.Body)
+	r.ParseForm()
+	rj := &RequestJson{
+		Method:           r.Method,
+		URL:              r.URL,
+		Proto:            r.Proto,
+		ProtoMajor:       r.ProtoMajor,
+		ProtoMinor:       r.ProtoMinor,
+		Header:           r.Header,
+		Body:             body,
+		TransferEncoding: r.TransferEncoding,
+		Host:             r.Host,
+		PostForm:         r.PostForm,
+	}
+
+	return rj
+}
+
+type RequestJson struct {
+	Method           string
+	URL              *url.URL
+	Proto            string
+	ProtoMajor       int
+	ProtoMinor       int
+	Header           http.Header
+	Body             []byte
+	TransferEncoding []string
+	Host             string
+	PostForm         url.Values
 }
