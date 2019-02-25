@@ -5,6 +5,7 @@ Drupal Honeypot
 Drupot supports go modules. 
 
 `go get github.com/d1str0/Drupot`
+
 `go build`
 
 ## Running Drupot
@@ -15,11 +16,10 @@ Drupot supports go modules.
 configuration options.
 
 ### Drupal
-`
-[drupal]
-port = 80
-changelog_filepath = "changelogs/CHANGELOG-7.63.txt"
-`
+    [drupal]
+    port = 80
+    changelog_filepath = "changelogs/CHANGELOG-7.63.txt"
+
 `port` allows you to set the http port to listen on. Currently, this is only ever
 served over http. Future versions will support https.
 
@@ -29,16 +29,15 @@ and serve them at different times. This allows you to mimic different versions
 of Drupal.
 
 ### hpfeeds
-`
-[hpfeeds]
-enabled = true
-host = "hpfeeds.threatstream.com"
-port = 10000
-ident = "drupot"
-auth = "somesecret"
-channel = "drupot.events"
-meta = "Drupal scan event detected"
-`
+    [hpfeeds]
+    enabled = true
+    host = "hpfeeds.threatstream.com"
+    port = 10000
+    ident = "drupot"
+    auth = "somesecret"
+    channel = "drupot.events"
+    meta = "Drupal scan event detected"
+
 hpfeeds can be enabled for logging if wanted. Supply host, port, ident, auth,
 and channel information relevant to an hpfeeds broker you want to report to. 
 
@@ -47,11 +46,10 @@ to differentiate Drupal versions hosted by honeypot or used to differentiate
 Drupot data in busy hpfeeds channels.
 
 ### Fetch Public IP
-`
-[fetch_public_ip]
-enabled = true
-urls = ["http://icanhazip.com/", "http://ifconfig.me/ip"]
-`
+    [fetch_public_ip]
+    enabled = true
+    urls = ["http://icanhazip.com/", "http://ifconfig.me/ip"]
+
 
 If enabled, Drupot will attempt to fetch the public IP of itself from the listed
 URLs. If enabled and no public IP can be fetched, Drupot will quit.
