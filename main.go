@@ -14,10 +14,9 @@ import (
 	"github.com/google/uuid"
 )
 
-const Version = "v0.0.3"
+const Version = "v0.0.4"
 
 type App struct {
-	Name       string
 	Publish    chan []byte
 	SeenIPLock sync.RWMutex
 	SeenIP     map[string]bool
@@ -39,7 +38,7 @@ func main() {
 	c := loadConfig(configFilename)
 
 	var app App
-	app.Name = "Drupot"
+	app.SensorIP = "127.0.0.1" // Default will be overwritten if public IP set to fetch.
 	app.Config = c
 	app.SeenIP = make(map[string]bool)
 	app.Publish = make(chan []byte)

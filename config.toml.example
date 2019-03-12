@@ -9,10 +9,12 @@ port = 80
 # Always served as "http[s]://server/CHANGELOG.txt"
 changelog_filepath = "changelogs/CHANGELOG-7.63.txt"
 
+version = "8.6"
+
 # TODO: Optional SSL/TLS Cert
 
 [hpfeeds]
-enabled = true
+enabled = false
 host = "hpfeeds.threatstream.com"
 port = 10000
 ident = "drupot"

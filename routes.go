@@ -3,12 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 )
+
+var templates = template.Must(template.ParseGlob("templates/*"))
+
+type Page struct {
+	Title string
+	Host  string
+}
 
 // staticHandler provides static pages depending on the request. If
 // CHANGELOG.txt is requested, return the appropriate Changelog file and flag
@@ -22,15 +30,33 @@ func staticHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, app.Config.Drupal.ChangelogFilepath)
 		} else {
 			checkIP(app, r)
-			http.ServeFile(w, r, "static/index.html")
+			filename := fmt.Sprintf("index-%s.html", app.Config.Drupal.Version)
+			host := fmt.Sprintf("http://%s", app.SensorIP)
+			p := Page{
+				Title: app.Config.Drupal.SiteName,
+				Host:  host,
+			}
+			fmt.Println(filename)
+			err := templates.ExecuteTemplate(w, filename, p)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 		}
 	}
+}
+
+func fileServe(w http.ResponseWriter, r *http.Request) {
+	path := fmt.Sprintf("public%s", r.URL.Path)
+	http.ServeFile(w, r, path)
 }
 
 // routes sets up the necessary http routing for the webapp.
 func routes(app App) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", staticHandler(app))
+	mux.HandleFunc("/core/", fileServe)
+	mux.HandleFunc("/sites/", fileServe)
+	mux.HandleFunc("/logo.svg", fileServe)
 	return mux
 }
 
@@ -92,8 +118,6 @@ type Msg struct {
 // recordRequest will parse the http.Request and put it into a normalized format
 // and then marshal to JSON. This can then be sent on an hpfeeds channel or
 // logged to a file directly.
-//
-// TODO: Add regular file logging.
 func recordRequest(app App, r *http.Request, fingerprinted bool) {
 	ip, p, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
@@ -112,7 +136,7 @@ func recordRequest(app App, r *http.Request, fingerprinted bool) {
 	// Populate data to send
 	pub_msg := Msg{
 		Protocol:      r.Proto,
-		App:           app.Name,
+		App:           "Drupot",
 		Channel:       app.Config.Hpfeeds.Channel,
 		Sensor:        app.SensorUUID.String(),
 		DestPort:      app.Config.Drupal.Port,
