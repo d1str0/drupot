@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const Version = "v0.0.4"
+const Version = "v0.0.5"
 
 type App struct {
 	Publish    chan []byte
@@ -81,8 +81,11 @@ func main() {
 
 	addr := fmt.Sprintf(":%d", c.Drupal.Port)
 	s := http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 	log.Fatal(s.ListenAndServe())
 
