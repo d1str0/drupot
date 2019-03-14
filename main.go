@@ -9,12 +9,13 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/d1str0/hpfeeds"
 	"github.com/google/uuid"
 )
 
-const Version = "v0.0.5"
+const Version = "v0.0.6"
 
 type App struct {
 	Publish    chan []byte
