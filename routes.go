@@ -18,6 +18,13 @@ type Page struct {
 	Host  string
 }
 
+func drupal404Handler(w http.ResponseWriter, r *http.Request) {
+	err := templates.ExecuteTemplate(w, "drupal-404.html", r.URL.String())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 // staticHandler provides static pages depending on the request. If
 // CHANGELOG.txt is requested, return the appropriate Changelog file and flag
 // the IP. Otherwise, return the index page and check whether to record the
@@ -26,8 +33,13 @@ func staticHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path[1:]
 		if path == "CHANGELOG.txt" {
+			if app.Config.Drupal.ChangelogEnabled {
+				http.ServeFile(w, r, app.Config.Drupal.ChangelogFilepath)
+			} else {
+				// Changelog files in Drupal 8.* are generally not served
+				drupal404Handler(w, r)
+			}
 			saveIP(app, r)
-			http.ServeFile(w, r, app.Config.Drupal.ChangelogFilepath)
 		} else {
 			checkIP(app, r)
 			filename := fmt.Sprintf("index-%s.html", app.Config.Drupal.Version)

@@ -16,10 +16,13 @@ type AppConfig struct {
 // portion of the honeypot.
 // [drupal]
 type DrupalConfig struct {
-	Version           string // Version of Drupal to emulate
-	Port              int
-	ChangelogFilepath string `toml:"changelog_filepath"`
-	SiteName          string `toml:"site_name"`
+	Version               string // Version of Drupal to emulate
+	Port                  int
+	ChangelogEnabled      bool   `toml:"changelog_enabled"`
+	ChangelogFilepath     string `toml:"changelog_filepath"`
+	SiteName              string `toml:"site_name"`
+	HeaderServer          string `toml:"header_server"`
+	HeaderContentLanguage string `toml:"header_content_language"`
 }
 
 // HpfeedsConfig provides configuration for connecting to an hpfeeds broker
