@@ -19,7 +19,7 @@ type Page struct {
 }
 
 func drupal404Handler(w http.ResponseWriter, r *http.Request) {
-	err := templates.ExecuteTemplate(w, "drupal-404.html", r.URL.String())
+	err := templates.ExecuteTemplate(w, "drupal-404.html", getHost(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -203,4 +203,12 @@ type RequestJson struct {
 	TransferEncoding []string
 	Host             string
 	PostForm         url.Values
+}
+
+// getHost tries its best to return the request host.
+func getHost(r *http.Request) string {
+	r.URL.Scheme = "http"
+	r.URL.Host = r.Host
+
+	return r.URL.String()
 }
