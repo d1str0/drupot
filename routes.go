@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -12,6 +13,10 @@ import (
 )
 
 var templates = template.Must(template.ParseGlob("templates/*"))
+
+var (
+	ErrDrupal422 = errors.New("The website encountered an unexpected error. Please try again later.")
+)
 
 type Page struct {
 	Title string
@@ -29,7 +34,7 @@ func drupal404Handler(w http.ResponseWriter, r *http.Request) {
 // CHANGELOG.txt is requested, return the appropriate Changelog file and flag
 // the IP. Otherwise, return the index page and check whether to record the
 // http.Request.
-func staticHandler(app App) func(w http.ResponseWriter, r *http.Request) {
+func drupalIndexHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path[1:]
 		if path == "CHANGELOG.txt" {
@@ -57,6 +62,13 @@ func staticHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func drupalNodeHandler(app App) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		saveIP(app, r)
+		http.Error(w, ErrDrupal422.Error(), http.StatusUnprocessableEntity)
+	}
+}
+
 func fileServe(w http.ResponseWriter, r *http.Request) {
 	path := fmt.Sprintf("public%s", r.URL.Path)
 	http.ServeFile(w, r, path)
@@ -65,10 +77,11 @@ func fileServe(w http.ResponseWriter, r *http.Request) {
 // routes sets up the necessary http routing for the webapp.
 func routes(app App) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", staticHandler(app))
+	mux.HandleFunc("/", drupalIndexHandler(app))
 	mux.HandleFunc("/core/", fileServe)
 	mux.HandleFunc("/sites/", fileServe)
 	mux.HandleFunc("/logo.svg", fileServe)
+	mux.HandleFunc("/node/", drupalNodeHandler(app))
 	return mux
 }
 
