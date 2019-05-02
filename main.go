@@ -68,12 +68,14 @@ func main() {
 
 		client.Publish(hpc.Channel, app.Publish)
 
+		var recon <-chan time.Time
 		go func() {
 			for {
 				select {
 				// If we see a disconnect, try to reconnect
 				case <-client.Disconnected:
-					recon <- time.Now()
+					// Trigger reconnect immediately
+					recon = time.After(0)
 				case <-recon:
 					fmt.Printf("Attempting to reconnect...\n")
 					err = client.Connect()
