@@ -67,6 +67,23 @@ func main() {
 		}
 
 		client.Publish(hpc.Channel, app.Publish)
+
+		go func() {
+			for {
+				select {
+				// If we see a disconnect, try to reconnect
+				case <-client.Disconnected:
+					recon <- time.Now()
+				case <-recon:
+					fmt.Printf("Attempting to reconnect...\n")
+					err = client.Connect()
+					if err != nil {
+						fmt.Printf("Error reconnecting: %s\n", err.Error())
+						recon = time.After(1 * time.Second)
+					}
+				}
+			}
+		}()
 	}
 
 	if c.PublicIP.Enabled {
