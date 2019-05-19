@@ -21,6 +21,7 @@ type DrupalConfig struct {
 	ChangelogEnabled      bool   `toml:"changelog_enabled"`
 	ChangelogFilepath     string `toml:"changelog_filepath"`
 	SiteName              string `toml:"site_name"`
+	NameRandomizer        bool   `toml:"name_randomizer"`
 	HeaderServer          string `toml:"header_server"`
 	HeaderContentLanguage string `toml:"header_content_language"`
 }
