@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/d1str0/hpfeeds"
 	"github.com/google/uuid"
 )
@@ -43,6 +44,10 @@ func main() {
 	app.Config = c
 	app.SeenIP = make(map[string]bool)
 	app.Publish = make(chan []byte)
+
+	if app.Config.Drupal.NameRandomizer {
+		app.Config.Drupal.SiteName = randomdata.SillyName()
+	}
 
 	// TODO: Persist UUID. Maybe a command line flag to refresh or overwrite.
 	uuid, err := uuid.NewUUID()
