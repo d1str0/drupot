@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const Version = "v0.0.7"
+const Version = "v0.0.8"
 
 type App struct {
 	Publish    chan []byte
