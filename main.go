@@ -61,28 +61,22 @@ func main() {
 		fmt.Printf("/-\tChannel: %s\n", hpc.Channel)
 
 		client := hpfeeds.NewClient(hpc.Host, hpc.Port, hpc.Ident, hpc.Auth)
-		err := client.Connect()
-		if err != nil {
-			log.Fatalf("Error connecting to hpfeeds server: %s\n", err.Error())
-		}
-
-		client.Publish(hpc.Channel, app.Publish)
 
 		var recon <-chan time.Time
 		go func() {
 			for {
-				select {
-				// If we see a disconnect, try to reconnect
-				case <-client.Disconnected:
-					// Trigger reconnect immediately
-					recon = time.After(0)
-				case <-recon:
-					fmt.Printf("Attempting to reconnect...\n")
-					err = client.Connect()
-					if err != nil {
-						fmt.Printf("Error reconnecting: %s\n", err.Error())
-						recon = time.After(1 * time.Second)
-					}
+				err := client.Connect()
+				if err != nil {
+					log.Fatalf("Error connecting to hpfeeds server: %s\n", err.Error())
+				}
+
+				client.Publish(hpc.Channel, app.Publish)
+				<-client.Disconnected
+				fmt.Printf("Attempting to reconnect...\n")
+				err = client.Connect()
+				if err != nil {
+					fmt.Printf("Error reconnecting: %s\n", err.Error())
+					recon = time.After(5 * time.Second)
 				}
 			}
 		}()
