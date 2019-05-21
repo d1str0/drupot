@@ -15,7 +15,7 @@ import (
 var templates = template.Must(template.ParseGlob("templates/*"))
 
 var (
-	ErrDrupal422 = errors.New("The website encountered an unexpected error. Please try again later.")
+	Err422 = errors.New("The website encountered an unexpected error. Please try again later.")
 )
 
 type Page struct {
@@ -23,8 +23,8 @@ type Page struct {
 	Host  string
 }
 
-func drupal404Handler(w http.ResponseWriter, r *http.Request) {
-	err := templates.ExecuteTemplate(w, "drupal-404.html", getHost(r))
+func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	err := templates.ExecuteTemplate(w, "404.html", getHost(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -34,38 +34,25 @@ func drupal404Handler(w http.ResponseWriter, r *http.Request) {
 // CHANGELOG.txt is requested, return the appropriate Changelog file and flag
 // the IP. Otherwise, return the index page and check whether to record the
 // http.Request.
-func drupalIndexHandler(app App) func(w http.ResponseWriter, r *http.Request) {
+func IndexHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path[1:]
-		if path == "CHANGELOG.txt" {
-			if app.Config.Drupal.ChangelogEnabled {
-				http.ServeFile(w, r, app.Config.Drupal.ChangelogFilepath)
-			} else {
-				// Changelog files in Drupal 8.* are generally not served
-				drupal404Handler(w, r)
-			}
-			saveIP(app, r)
-		} else {
-			checkIP(app, r)
-			filename := fmt.Sprintf("index-%s.html", app.Config.Drupal.Version)
-			host := fmt.Sprintf("http://%s", app.SensorIP)
-			p := Page{
-				Title: app.Config.Drupal.SiteName,
-				Host:  host,
-			}
-			fmt.Println(filename)
-			err := templates.ExecuteTemplate(w, filename, p)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+		checkIP(app, r)
+		host := fmt.Sprintf("http://%s", app.SensorIP)
+		p := Page{
+			Title: app.Config.Drupal.SiteName,
+			Host:  host,
+		}
+		err := templates.ExecuteTemplate(w, "index.html", p)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 }
 
-func drupalNodeHandler(app App) func(w http.ResponseWriter, r *http.Request) {
+func NodeHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		saveIP(app, r)
-		http.Error(w, ErrDrupal422.Error(), http.StatusUnprocessableEntity)
+		http.Error(w, Err422.Error(), http.StatusUnprocessableEntity)
 	}
 }
 
@@ -77,11 +64,12 @@ func fileServe(w http.ResponseWriter, r *http.Request) {
 // routes sets up the necessary http routing for the webapp.
 func routes(app App) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", drupalIndexHandler(app))
+	mux.HandleFunc("/", IndexHandler(app))
 	mux.HandleFunc("/core/", fileServe)
 	mux.HandleFunc("/sites/", fileServe)
 	mux.HandleFunc("/logo.svg", fileServe)
-	mux.HandleFunc("/node/", drupalNodeHandler(app))
+	mux.HandleFunc("/CHANGELOG.txt", NotFoundHandler)
+	mux.HandleFunc("/node/", NodeHandler(app))
 	return mux
 }
 
@@ -99,7 +87,6 @@ func saveIP(app App, r *http.Request) {
 		defer app.SeenIPLock.Unlock()
 
 		app.SeenIP[ip] = true
-		fmt.Printf("New CHANGELOG request: %s, %s\n", ip, r.URL.Path)
 	}
 }
 
@@ -161,7 +148,7 @@ func recordRequest(app App, r *http.Request, fingerprinted bool) {
 	// Populate data to send
 	pub_msg := Msg{
 		Protocol:      r.Proto,
-		App:           "Drupot",
+		App:           "drupot",
 		Channel:       app.Config.Hpfeeds.Channel,
 		Sensor:        app.SensorUUID.String(),
 		DestPort:      app.Config.Drupal.Port,

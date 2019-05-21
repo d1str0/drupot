@@ -57,34 +57,7 @@ func main() {
 	app.SensorUUID = &uuid
 
 	if c.Hpfeeds.Enabled {
-
-		hpc := c.Hpfeeds
-		fmt.Printf("/- Connecting to hpfeeds server: %s\n", hpc.Host)
-		fmt.Printf("/-\tPort: %d\n", hpc.Port)
-		fmt.Printf("/-\tIdent: %s\n", hpc.Ident)
-		fmt.Printf("/-\tAuth: %s\n", hpc.Auth)
-		fmt.Printf("/-\tChannel: %s\n", hpc.Channel)
-
-		client := hpfeeds.NewClient(hpc.Host, hpc.Port, hpc.Ident, hpc.Auth)
-
-		var recon <-chan time.Time
-		go func() {
-			for {
-				err := client.Connect()
-				if err != nil {
-					log.Fatalf("Error connecting to hpfeeds server: %s\n", err.Error())
-				}
-
-				client.Publish(hpc.Channel, app.Publish)
-				<-client.Disconnected
-				fmt.Printf("Attempting to reconnect...\n")
-				err = client.Connect()
-				if err != nil {
-					fmt.Printf("Error reconnecting: %s\n", err.Error())
-					recon = time.After(5 * time.Second)
-				}
-			}
-		}()
+		enableHpfeeds()
 	}
 
 	if c.PublicIP.Enabled {
@@ -108,6 +81,37 @@ func main() {
 	}
 	log.Fatal(s.ListenAndServe())
 
+}
+
+func enableHpfeeds() {
+
+	hpc := c.Hpfeeds
+	fmt.Printf("/- Connecting to hpfeeds server: %s\n", hpc.Host)
+	fmt.Printf("/-\tPort: %d\n", hpc.Port)
+	fmt.Printf("/-\tIdent: %s\n", hpc.Ident)
+	fmt.Printf("/-\tAuth: %s\n", hpc.Auth)
+	fmt.Printf("/-\tChannel: %s\n", hpc.Channel)
+
+	client := hpfeeds.NewClient(hpc.Host, hpc.Port, hpc.Ident, hpc.Auth)
+
+	var recon <-chan time.Time
+	go func() {
+		for {
+			err := client.Connect()
+			if err != nil {
+				log.Fatalf("Error connecting to hpfeeds server: %s\n", err.Error())
+			}
+
+			client.Publish(hpc.Channel, app.Publish)
+			<-client.Disconnected
+			fmt.Printf("Attempting to reconnect...\n")
+			err = client.Connect()
+			if err != nil {
+				fmt.Printf("Error reconnecting: %s\n", err.Error())
+				recon = time.After(5 * time.Second)
+			}
+		}
+	}()
 }
 
 // getPublicIP goes through a list of URLs to
