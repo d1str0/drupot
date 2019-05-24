@@ -19,8 +19,10 @@ var (
 )
 
 type Page struct {
-	Title string
-	Host  string
+	Title    string
+	Host     string
+	Error    bool
+	Username string
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +32,7 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// staticHandler provides static pages depending on the request. If
+// IndexHandler provides static pages depending on the request. If
 // CHANGELOG.txt is requested, return the appropriate Changelog file and flag
 // the IP. Otherwise, return the index page and check whether to record the
 // http.Request.
@@ -61,6 +63,29 @@ func fileServe(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
+// TODO: Randomize csrf token
+func loginHandler(app App) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		host := fmt.Sprintf("http://%s", app.SensorIP)
+		p := Page{
+			Title: app.Config.Drupal.SiteName,
+			Host:  host,
+		}
+		var err error
+		if r.Method == "POST" {
+			p.Username = r.PostFormValue("name")
+			p.Error = true
+			// TODO: Log credentials
+			err = templates.ExecuteTemplate(w, "login-invalid.html", p)
+		} else {
+			err = templates.ExecuteTemplate(w, "login.html", p)
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
 // routes sets up the necessary http routing for the webapp.
 func routes(app App) *http.ServeMux {
 	mux := http.NewServeMux()
@@ -70,6 +95,7 @@ func routes(app App) *http.ServeMux {
 	mux.HandleFunc("/logo.svg", fileServe)
 	mux.HandleFunc("/CHANGELOG.txt", NotFoundHandler)
 	mux.HandleFunc("/node/", NodeHandler(app))
+	mux.HandleFunc("/user/login", loginHandler(app))
 	return mux
 }
 

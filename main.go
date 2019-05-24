@@ -37,11 +37,11 @@ func main() {
 	flag.Parse()
 
 	fmt.Printf("//- Loading config file: %s\n", configFilename)
-	c := loadConfig(configFilename)
+	config := loadConfig(configFilename)
 
 	var app App
 	app.SensorIP = "127.0.0.1" // Default will be overwritten if public IP set to fetch.
-	app.Config = c
+	app.Config = config
 	app.SeenIP = make(map[string]bool)
 	app.Publish = make(chan []byte)
 
@@ -56,12 +56,12 @@ func main() {
 	}
 	app.SensorUUID = &uuid
 
-	if c.Hpfeeds.Enabled {
-		enableHpfeeds()
+	if config.Hpfeeds.Enabled {
+		enableHpfeeds(app)
 	}
 
-	if c.PublicIP.Enabled {
-		ip, err := getPublicIP(c.PublicIP)
+	if config.PublicIP.Enabled {
+		ip, err := getPublicIP(config.PublicIP)
 		if err != nil {
 			log.Fatalf("Error getting public IP: %s\n", err.Error())
 		}
@@ -71,7 +71,7 @@ func main() {
 	// Load routes for the server
 	mux := routes(app)
 
-	addr := fmt.Sprintf(":%d", c.Drupal.Port)
+	addr := fmt.Sprintf(":%d", config.Drupal.Port)
 	s := http.Server{
 		Addr:         addr,
 		Handler:      mux,
@@ -83,16 +83,15 @@ func main() {
 
 }
 
-func enableHpfeeds() {
+func enableHpfeeds(app App) {
+	c := app.Config.Hpfeeds
+	fmt.Printf("/- Connecting to hpfeeds server: %s\n", c.Host)
+	fmt.Printf("/-\tPort: %d\n", c.Port)
+	fmt.Printf("/-\tIdent: %s\n", c.Ident)
+	fmt.Printf("/-\tAuth: %s\n", c.Auth)
+	fmt.Printf("/-\tChannel: %s\n", c.Channel)
 
-	hpc := c.Hpfeeds
-	fmt.Printf("/- Connecting to hpfeeds server: %s\n", hpc.Host)
-	fmt.Printf("/-\tPort: %d\n", hpc.Port)
-	fmt.Printf("/-\tIdent: %s\n", hpc.Ident)
-	fmt.Printf("/-\tAuth: %s\n", hpc.Auth)
-	fmt.Printf("/-\tChannel: %s\n", hpc.Channel)
-
-	client := hpfeeds.NewClient(hpc.Host, hpc.Port, hpc.Ident, hpc.Auth)
+	client := hpfeeds.NewClient(c.Host, c.Port, c.Ident, c.Auth)
 
 	var recon <-chan time.Time
 	go func() {
@@ -102,7 +101,7 @@ func enableHpfeeds() {
 				log.Fatalf("Error connecting to hpfeeds server: %s\n", err.Error())
 			}
 
-			client.Publish(hpc.Channel, app.Publish)
+			client.Publish(c.Channel, app.Publish)
 			<-client.Disconnected
 			fmt.Printf("Attempting to reconnect...\n")
 			err = client.Connect()
@@ -117,6 +116,7 @@ func enableHpfeeds() {
 // getPublicIP goes through a list of URLs to
 func getPublicIP(c *PublicIPConfig) (string, error) {
 	var ip net.IP
+
 	for _, site := range c.URLs {
 		resp, err := http.Get(site)
 		if err != nil {
@@ -138,5 +138,6 @@ func getPublicIP(c *PublicIPConfig) (string, error) {
 			return ip.String(), nil
 		}
 	}
+
 	return "", errors.New("Unable to get public IP")
 }
