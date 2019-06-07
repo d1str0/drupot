@@ -18,6 +18,7 @@ import (
 )
 
 const Version = "v0.0.9"
+const AgaveApp = "Drupot"
 
 type App struct {
 	Publish    chan []byte
@@ -70,7 +71,7 @@ func main() {
 		app.SensorIP = ip
 	}
 
-	app.Agave = agave.NewClient("Agave-Drupal", config.Hpfeeds.Channel, app.SensorUUID, app.SensorIP, config.Drupal.Port)
+	app.Agave = agave.NewClient(AgaveApp, config.Hpfeeds.Channel, app.SensorUUID, app.SensorIP, config.Drupal.Port)
 
 	// Load routes for the server
 	mux := routes(app)
