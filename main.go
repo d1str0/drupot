@@ -14,6 +14,7 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/d1str0/hpfeeds"
 	"github.com/google/uuid"
+	"github.com/threatstream/agave"
 )
 
 const Version = "v0.0.9"
@@ -24,7 +25,8 @@ type App struct {
 	SeenIP     map[string]bool
 	SensorIP   string
 	Config     *AppConfig
-	SensorUUID *uuid.UUID
+	SensorUUID string
+	Agave      *agave.Client
 }
 
 func main() {
@@ -54,7 +56,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error generating UUID: %s\n", err.Error())
 	}
-	app.SensorUUID = &uuid
+	app.SensorUUID = uuid.String()
 
 	if config.Hpfeeds.Enabled {
 		enableHpfeeds(app)
@@ -67,6 +69,8 @@ func main() {
 		}
 		app.SensorIP = ip
 	}
+
+	app.Agave = agave.NewClient("Agave-Drupal", config.Hpfeeds.Channel, app.SensorUUID, app.SensorIP, config.Drupal.Port)
 
 	// Load routes for the server
 	mux := routes(app)

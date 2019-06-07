@@ -5,14 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
-	"net"
 	"net/http"
-	"net/url"
-	"strconv"
 )
 
 var templates = template.Must(template.ParseGlob("templates/*"))
+
+const CVE20196340 = "CVE-2019-6340"
+const DrupalScan = "Drupal Scanner"
+const DrupalScanLogin = "Drupal Scanner - Login Page"
+const DrupalScanChangelog = "Drupal Scanner - CHANGELOG.txt"
 
 var (
 	Err422 = errors.New("The website encountered an unexpected error. Please try again later.")
@@ -25,10 +26,13 @@ type Page struct {
 	Username string
 }
 
-func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
-	err := templates.ExecuteTemplate(w, "404.html", getHost(r))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func NotFoundHandler(app App) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		recordAttack(app, r, DrupalScanChangelog)
+		err := templates.ExecuteTemplate(w, "404.html", getHost(r))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -38,7 +42,7 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 // http.Request.
 func IndexHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		checkIP(app, r)
+		recordAttack(app, r, DrupalScan)
 		host := fmt.Sprintf("http://%s", app.SensorIP)
 		p := Page{
 			Title: app.Config.Drupal.SiteName,
@@ -53,7 +57,7 @@ func IndexHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 
 func NodeHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		saveIP(app, r)
+		recordAttack(app, r, CVE20196340)
 		http.Error(w, Err422.Error(), http.StatusUnprocessableEntity)
 	}
 }
@@ -73,11 +77,16 @@ func loginHandler(app App) func(w http.ResponseWriter, r *http.Request) {
 		}
 		var err error
 		if r.Method == "POST" {
-			p.Username = r.PostFormValue("name")
+			username := r.PostFormValue("name")
+			password := r.PostFormValue("pass")
+			recordCredentials(app, r, username, password)
+
+			p.Username = username
 			p.Error = true
-			// TODO: Log credentials
+
 			err = templates.ExecuteTemplate(w, "login-invalid.html", p)
 		} else {
+			recordAttack(app, r, DrupalScanLogin)
 			err = templates.ExecuteTemplate(w, "login.html", p)
 		}
 		if err != nil {
@@ -93,101 +102,25 @@ func routes(app App) *http.ServeMux {
 	mux.HandleFunc("/core/", fileServe)
 	mux.HandleFunc("/sites/", fileServe)
 	mux.HandleFunc("/logo.svg", fileServe)
-	mux.HandleFunc("/CHANGELOG.txt", NotFoundHandler)
+	mux.HandleFunc("/CHANGELOG.txt", NotFoundHandler(app))
 	mux.HandleFunc("/node/", NodeHandler(app))
 	mux.HandleFunc("/user/login", loginHandler(app))
 	return mux
 }
 
-// saveIP flags the given IP so that if we see it in the future we can record
-// its requests.
-func saveIP(app App, r *http.Request) {
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		fmt.Printf("error: %s\n", err.Error())
-	}
-	// If this is a previously unseen IP, let's remember them.
-	if !app.SeenIP[ip] {
-		recordRequest(app, r, false)
-		app.SeenIPLock.Lock()
-		defer app.SeenIPLock.Unlock()
-
-		app.SeenIP[ip] = true
-	}
-}
-
-// checkIP checks to see if this IP has been flagged before. If so, we
-// record the http.Request.
-func checkIP(app App, r *http.Request) {
-	// If this is a previously seen IP, let's record what they do.
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		fmt.Printf("error: %s\n", err.Error())
-	}
-	app.SeenIPLock.RLock()
-	defer app.SeenIPLock.RUnlock()
-
-	// If we saw this IP request our CHANGELOG, record whatever they do next.
-	if app.SeenIP[ip] {
-		recordRequest(app, r, true)
-		fmt.Printf("Seen request from: %s, %s\n", ip, r.URL.Path)
-	} else {
-		recordRequest(app, r, false)
-		fmt.Printf("Seen request from: %s, %s\n", ip, r.URL.Path)
-	}
-}
-
-// Msg normalizes the recieved request and allows for easy marshaling into JSON.
-type Msg struct {
-	Protocol      string
-	App           string
-	Channel       string
-	Sensor        string
-	DestPort      int
-	DestIp        string
-	SrcPort       int
-	SrcIp         string
-	Meta          string
-	Signature     string
-	Fingerprinted bool
-	Request       *RequestJson
-}
-
 // recordRequest will parse the http.Request and put it into a normalized format
 // and then marshal to JSON. This can then be sent on an hpfeeds channel or
 // logged to a file directly.
-func recordRequest(app App, r *http.Request, fingerprinted bool) {
-	ip, p, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		fmt.Println("error:", err)
-		return
-	}
-
-	port, err := strconv.Atoi(p)
-	if err != nil {
-		fmt.Println("error:", err)
-		return
-	}
-
-	rj := TrimRequest(r)
-
+func recordAttack(app App, r *http.Request, signature string) {
 	// Populate data to send
-	pub_msg := Msg{
-		Protocol:      r.Proto,
-		App:           "drupot",
-		Channel:       app.Config.Hpfeeds.Channel,
-		Sensor:        app.SensorUUID.String(),
-		DestPort:      app.Config.Drupal.Port,
-		DestIp:        app.SensorIP,
-		SrcPort:       port,
-		SrcIp:         ip,
-		Meta:          app.Config.Hpfeeds.Meta,
-		Fingerprinted: fingerprinted,
-		Request:       rj,
+	payload, err := app.Agave.NewHTTPAttack(signature, r)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
 	}
 
 	// Marshal it to json so we can send it over hpfeeds.
-	buf, err := json.Marshal(pub_msg)
+	buf, err := json.Marshal(payload)
 	if err != nil {
 		fmt.Println("error:", err)
 		return
@@ -199,36 +132,28 @@ func recordRequest(app App, r *http.Request, fingerprinted bool) {
 	}
 }
 
-func TrimRequest(r *http.Request) *RequestJson {
-	body, _ := ioutil.ReadAll(r.Body)
-	r.ParseForm()
-	rj := &RequestJson{
-		Method:           r.Method,
-		URL:              r.URL,
-		Proto:            r.Proto,
-		ProtoMajor:       r.ProtoMajor,
-		ProtoMinor:       r.ProtoMinor,
-		Header:           r.Header,
-		Body:             body,
-		TransferEncoding: r.TransferEncoding,
-		Host:             r.Host,
-		PostForm:         r.PostForm,
+// recordRequest will parse the http.Request and put it into a normalized format
+// and then marshal to JSON. This can then be sent on an hpfeeds channel or
+// logged to a file directly.
+func recordCredentials(app App, r *http.Request, username string, password string) {
+	// Populate data to send
+	payload, err := app.Agave.NewCredentialAttack(r, username, password)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
 	}
 
-	return rj
-}
+	// Marshal it to json so we can send it over hpfeeds.
+	buf, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 
-type RequestJson struct {
-	Method           string
-	URL              *url.URL
-	Proto            string
-	ProtoMajor       int
-	ProtoMinor       int
-	Header           http.Header
-	Body             []byte
-	TransferEncoding []string
-	Host             string
-	PostForm         url.Values
+	// Send to hpfeeds broker
+	if app.Config.Hpfeeds.Enabled {
+		app.Publish <- buf
+	}
 }
 
 // getHost tries its best to return the request host.
