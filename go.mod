@@ -1,4 +1,4 @@
-module github.com/d1str0/Drupot
+module github.com/d1str0/drupot
 
 require (
 	github.com/BurntSushi/toml v0.3.1
