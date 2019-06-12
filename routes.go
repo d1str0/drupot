@@ -126,6 +126,8 @@ func recordAttack(app App, r *http.Request, signature string) {
 		return
 	}
 
+	log.Printf("%s", buf)
+
 	// Send to hpfeeds broker
 	if app.Config.Hpfeeds.Enabled {
 		app.Publish <- buf
@@ -149,6 +151,8 @@ func recordCredentials(app App, r *http.Request, username string, password strin
 		fmt.Println("error:", err)
 		return
 	}
+
+	log.Printf("%s", buf)
 
 	// Send to hpfeeds broker
 	if app.Config.Hpfeeds.Enabled {

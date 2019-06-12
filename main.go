@@ -98,22 +98,17 @@ func enableHpfeeds(app App) {
 
 	client := hpfeeds.NewClient(c.Host, c.Port, c.Ident, c.Auth)
 
-	var recon <-chan time.Time
 	go func() {
 		for {
 			err := client.Connect()
 			if err != nil {
 				log.Fatalf("Error connecting to hpfeeds server: %s\n", err.Error())
+				time.Sleep(5 * time.Second)
+				continue
 			}
-
 			client.Publish(c.Channel, app.Publish)
 			<-client.Disconnected
 			fmt.Printf("Attempting to reconnect...\n")
-			err = client.Connect()
-			if err != nil {
-				fmt.Printf("Error reconnecting: %s\n", err.Error())
-				recon = time.After(5 * time.Second)
-			}
 		}
 	}()
 }
