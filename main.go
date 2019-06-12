@@ -17,7 +17,7 @@ import (
 	"github.com/threatstream/agave"
 )
 
-const Version = "v0.0.9"
+const Version = "v0.2.2"
 const AgaveApp = "Drupot"
 
 type App struct {
