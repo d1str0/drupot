@@ -22,7 +22,7 @@ const AgaveApp = "Drupot"
 
 type App struct {
 	Publish    chan []byte
-	SeenIPLock sync.RWMutex
+	SeenIPLock *sync.RWMutex
 	SeenIP     map[string]bool
 	SensorIP   string
 	Config     *AppConfig
@@ -43,6 +43,7 @@ func main() {
 	config := loadConfig(configFilename)
 
 	var app App
+	app.SeenIPLock = &sync.RWMutex{}
 	app.SensorIP = "127.0.0.1" // Default will be overwritten if public IP set to fetch.
 	app.Config = config
 	app.SeenIP = make(map[string]bool)
