@@ -4,7 +4,7 @@ Drupal Honeypot
 ## Installation
 Drupot supports go modules. 
 
-`go get github.com/d1str0/Drupot`
+`go get github.com/d1str0/drupot`
 
 `go build`
 
@@ -33,9 +33,9 @@ of Drupal.
     enabled = true
     host = "hpfeeds.threatstream.com"
     port = 10000
-    ident = "drupot"
+    ident = "agave"
     auth = "somesecret"
-    channel = "drupot.events"
+    channel = "agave.events"
     meta = "Drupal scan event detected"
 
 hpfeeds can be enabled for logging if wanted. Supply host, port, ident, auth,
@@ -49,8 +49,12 @@ Drupot data in busy hpfeeds channels.
     [fetch_public_ip]
     enabled = true
     urls = ["http://icanhazip.com/", "http://ifconfig.me/ip"]
-
+    
 
 If enabled, Drupot will attempt to fetch the public IP of itself from the listed
 URLs. If enabled and no public IP can be fetched, Drupot will quit.
 
+## Sister Projects
+* [Magenpot](https://github.com/trevorleake/magenpot), a Magento honeypot
+* [bbpot](https://github.com/d1str0/bbpot), a phpBB honeypot (WIP)
+* [Presspot](https://github.com/brooks32/presspot), a WordPress honeypot (WIP)
