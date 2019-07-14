@@ -57,4 +57,4 @@ URLs. If enabled and no public IP can be fetched, Drupot will quit.
 ## Sister Projects
 * [Magenpot](https://github.com/trevorleake/magenpot), a Magento honeypot
 * [bbpot](https://github.com/d1str0/bbpot), a phpBB honeypot (WIP)
-* [Presspot](https://github.com/brooks32/presspot), a WordPress honeypot (WIP)
+* [Presspot](https://github.com/brooks42/presspot), a WordPress honeypot (WIP)
